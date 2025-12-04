@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Video - ScreenGrab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">🎥 ScreenGrab</a>
+      <nav class="nav-links" id="nav-links">
+        <a href="/">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="player-container">
+      <div id="loading" class="text-center" style="padding: 60px 0;">
+        <div class="spinner"></div>
+        <p class="mt-3" style="color: var(--text-secondary);">Loading video...</p>
+      </div>
+
+      <div id="video-content" class="hidden">
+        <div class="player-wrapper">
+          <video id="video-player" controls></video>
+        </div>
+
+        <div class="player-info">
+          <div class="card">
+            <h2 id="video-title" class="mb-2"></h2>
+            <div id="video-meta" style="color: var(--text-secondary); margin-bottom: 16px;"></div>
+            
+            <div id="expiration-warning" class="expiration-warning hidden">
+              <span style="font-size: 24px;">⏱️</span>
+              <div style="flex: 1;">
+                <strong>This video will expire soon!</strong>
+                <div id="time-remaining" style="font-size: 14px; margin-top: 4px;"></div>
+              </div>
+            </div>
+
+            <div class="controls mt-3">
+              <button onclick="downloadVideo()" class="btn">
+                📥 Download Video
+              </button>
+              <button onclick="copyLink()" class="btn btn-secondary">
+                📋 Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="error-section" class="hidden">
+        <div class="empty-state">
+          <div class="empty-state-icon">❌</div>
+          <h3>Video Not Found</h3>
+          <p>This video doesn't exist or may have been deleted.</p>
+          <a href="/" class="btn mt-3">Go Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script>
+    let videoId;
+    let videoData;
+
+    async function init() {
+      // Check auth status for nav
+      const user = await getCurrentUser();
+      const navLinks = document.getElementById('nav-links');
+      
+      if (user) {
+        navLinks.innerHTML = `
+          <a href="/dashboard.html">Dashboard</a>
+          <a href="/record.html" class="btn">Record</a>
+        `;
+      } else {
+        navLinks.innerHTML = `
+          <a href="/">Home</a>
+          <button onclick="window.location.href='/api/auth/google'" class="btn">Login</button>
+        `;
+      }
+
+      // Get video ID from URL
+      videoId = getQueryParam('v');
+      
+      if (!videoId) {
+        showError();
+        return;
+      }
+
+      await loadVideo();
+    }
+
+    async function loadVideo() {
+      try {
+        // Get video metadata
+        const response = await apiCall(`/api/videos/${videoId}`);
+        videoData = response.video;
+
+        // Check if expired
+        if (videoData.is_expired || videoData.expires_at < Date.now()) {
+          window.location.href = `/expired.html?v=${videoId}`;
+          return;
+        }
+
+        // Load video
+        const videoPlayer = document.getElementById('video-player');
+        videoPlayer.src = `/api/videos/${videoId}/stream`;
+
+        // Update UI
+        document.getElementById('video-title').textContent = videoData.filename;
+        
+        const metaText = [];
+        if (videoData.duration_seconds) {
+          metaText.push(formatDuration(videoData.duration_seconds));
+        }
+        if (videoData.size_bytes) {
+          metaText.push(formatFileSize(videoData.size_bytes));
+        }
+        metaText.push(`${videoData.view_count || 0} views`);
+        metaText.push(`Created ${formatDate(videoData.created_at)}`);
+        
+        document.getElementById('video-meta').textContent = metaText.join(' • ');
+
+        // Show expiration warning if less than 24 hours remaining
+        const timeRemaining = videoData.expires_at - Date.now();
+        if (timeRemaining < 24 * 60 * 60 * 1000) {
+          document.getElementById('expiration-warning').classList.remove('hidden');
+          document.getElementById('time-remaining').textContent = 
+            `Expires in ${formatTimeRemaining(videoData.expires_at)}`;
+          
+          // Update timer every minute
+          setInterval(() => {
+            const remaining = formatTimeRemaining(videoData.expires_at);
+            document.getElementById('time-remaining').textContent = `Expires in ${remaining}`;
+            
+            // Redirect if expired
+            if (videoData.expires_at < Date.now()) {
+              window.location.href = `/expired.html?v=${videoId}`;
+            }
+          }, 60000);
+        }
+
+        // Show video content
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('video-content').classList.remove('hidden');
+
+      } catch (error) {
+        console.error('Error loading video:', error);
+        showError();
+      }
+    }
+
+    function showError() {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('error-section').classList.remove('hidden');
+    }
+
+    function downloadVideo() {
+      window.location.href = `/api/videos/${videoId}/download`;
+    }
+
+    async function copyLink() {
+      const link = window.location.href;
+      const success = await copyToClipboard(link);
+      if (success) {
+        showToast('Link copied to clipboard!', 'success');
+      } else {
+        showToast('Failed to copy link', 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
+

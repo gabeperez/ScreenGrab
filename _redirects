@@ -1,0 +1,5 @@
+# Cloudflare Pages redirects
+# This file tells Pages to proxy API requests to the Worker
+
+/api/* https://screengrab.YOUR_SUBDOMAIN.workers.dev/api/:splat 200
+

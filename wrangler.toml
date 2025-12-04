@@ -1,0 +1,29 @@
+name = "screengrab"
+compatibility_date = "2024-12-01"
+pages_build_output_dir = "public"
+
+# R2 Bucket binding
+[[r2_buckets]]
+binding = "VIDEOS_BUCKET"
+bucket_name = "screengrab-videos"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "screengrab-db"
+database_id = "72e73fe0-a117-40b6-b268-67d3dc4dba30"
+
+# Environment variables (non-sensitive only)
+# Secrets should be added via Cloudflare Pages dashboard
+[vars]
+ENVIRONMENT = "production"
+GOOGLE_CLIENT_ID = "38684764880-jr423bgp0fmdcjb2t7ip6sm9evjmio91.apps.googleusercontent.com"
+# Note: Add these as encrypted environment variables in Cloudflare Pages dashboard:
+# - JWT_SECRET
+# - GOOGLE_CLIENT_SECRET
+# - RESEND_API_KEY
+# - APP_URL (will be your Pages URL)
+
+# Cron trigger for cleaning expired videos
+[triggers]
+crons = ["0 2 * * *"]  # Runs daily at 2 AM UTC

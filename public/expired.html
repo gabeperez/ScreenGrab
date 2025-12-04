@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Expired - ScreenGrab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">🎥 ScreenGrab</a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="container-narrow">
+      <div class="empty-state" style="padding: 80px 20px;">
+        <div class="empty-state-icon">💥</div>
+        <h1 style="font-size: 36px; margin-bottom: 16px;">Video Self-Destructed!</h1>
+        <p style="font-size: 18px; margin-bottom: 32px;">
+          This video has expired and is no longer available.
+        </p>
+
+        <div class="card text-center">
+          <h3 class="mb-3">Want to watch it anyway?</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 24px;">
+            We can notify the video owner that you'd like access to this video. 
+            They'll have the option to re-upload it.
+          </p>
+
+          <div id="request-form">
+            <div class="form-group">
+              <label class="form-label">Your email (optional)</label>
+              <input 
+                type="email" 
+                id="requester-email" 
+                class="form-input" 
+                placeholder="your@email.com"
+              >
+              <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                Providing your email helps the owner contact you when the video is available.
+              </p>
+            </div>
+
+            <button onclick="requestVideo()" class="btn btn-large" style="width: 100%;">
+              📧 Request This Video
+            </button>
+          </div>
+
+          <div id="request-success" class="hidden">
+            <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+            <h3 class="mb-2">Request Sent!</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">
+              The video owner has been notified. If they choose to re-upload the video, 
+              you'll receive an email with the new link.
+            </p>
+            <a href="/" class="btn">Go Home</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script>
+    let videoId;
+
+    function init() {
+      videoId = getQueryParam('v');
+      
+      if (!videoId) {
+        window.location.href = '/';
+      }
+    }
+
+    async function requestVideo() {
+      const email = document.getElementById('requester-email').value;
+
+      try {
+        await apiCall(`/api/videos/${videoId}/request`, {
+          method: 'POST',
+          body: JSON.stringify({
+            requesterEmail: email || null,
+          }),
+        });
+
+        // Show success message
+        document.getElementById('request-form').classList.add('hidden');
+        document.getElementById('request-success').classList.remove('hidden');
+
+      } catch (error) {
+        console.error('Error requesting video:', error);
+        showToast('Failed to send request. Please try again.', 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
+

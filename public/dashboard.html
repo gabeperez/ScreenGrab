@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - ScreenGrab</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">🎥 ScreenGrab</a>
+      <nav class="nav-links">
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/record.html" class="btn">Record</a>
+        <button onclick="logout()" class="btn btn-secondary">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <h1 class="card-title">My Videos</h1>
+        <p class="card-subtitle">Manage your recorded videos and share links</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <a href="/record.html" class="btn">
+          🎬 Record New Video
+        </a>
+      </div>
+
+      <div id="loading" class="text-center" style="padding: 40px 0;">
+        <div class="spinner"></div>
+        <p class="mt-3" style="color: var(--text-secondary);">Loading your videos...</p>
+      </div>
+
+      <div id="videos-container" class="hidden">
+        <div id="active-videos">
+          <h3 class="mb-3">Active Videos</h3>
+          <div id="active-videos-grid" class="video-grid"></div>
+          <div id="no-active-videos" class="empty-state hidden">
+            <div class="empty-state-icon">📹</div>
+            <h3>No active videos</h3>
+            <p>Record your first video to get started!</p>
+            <a href="/record.html" class="btn mt-3">Record Now</a>
+          </div>
+        </div>
+
+        <div id="expired-videos" class="mt-4 hidden">
+          <h3 class="mb-3">Expired Videos</h3>
+          <div id="expired-videos-grid" class="video-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div class="card" style="max-width: 400px; width: 90%;">
+      <h3 class="mb-2">Delete Video?</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 20px;">
+        This action cannot be undone. The video and all its data will be permanently deleted.
+      </p>
+      <div class="controls">
+        <button onclick="closeDeleteModal()" class="btn btn-secondary">Cancel</button>
+        <button onclick="confirmDelete()" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script>
+    let videos = [];
+    let videoToDelete = null;
+
+    async function init() {
+      // Handle token from OAuth callback
+      handleAuthToken();
+      
+      const user = await requireAuth();
+      if (!user) return;
+
+      await loadVideos();
+    }
+
+    async function loadVideos() {
+      try {
+        const response = await apiCall('/api/user/videos');
+        videos = response.videos;
+
+        const activeVideos = videos.filter(v => !v.is_expired && v.expires_at > Date.now());
+        const expiredVideos = videos.filter(v => v.is_expired || v.expires_at < Date.now());
+
+        // Hide loading
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('videos-container').classList.remove('hidden');
+
+        // Render active videos
+        if (activeVideos.length === 0) {
+          document.getElementById('no-active-videos').classList.remove('hidden');
+          document.getElementById('active-videos-grid').classList.add('hidden');
+        } else {
+          renderVideos(activeVideos, 'active-videos-grid', false);
+        }
+
+        // Render expired videos
+        if (expiredVideos.length > 0) {
+          document.getElementById('expired-videos').classList.remove('hidden');
+          renderVideos(expiredVideos, 'expired-videos-grid', true);
+        }
+
+      } catch (error) {
+        console.error('Error loading videos:', error);
+        showToast('Failed to load videos', 'error');
+      }
+    }
+
+    function renderVideos(videoList, containerId, isExpired) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      videoList.forEach(video => {
+        const card = document.createElement('div');
+        card.className = 'video-card';
+        
+        const expirationBadge = isExpired ? 
+          '<span class="badge badge-danger">Expired</span>' :
+          `<span class="badge badge-success">${formatTimeRemaining(video.expires_at)} left</span>`;
+
+        card.innerHTML = `
+          <div class="video-thumbnail">🎬</div>
+          <div class="video-info">
+            <div class="video-title">${video.filename}</div>
+            <div class="video-meta">
+              ${video.duration_seconds ? formatDuration(video.duration_seconds) : '0:00'} • 
+              ${formatFileSize(video.size_bytes || 0)}
+            </div>
+            <div class="video-meta">
+              ${video.view_count || 0} views • ${formatDate(video.created_at)}
+            </div>
+            <div class="mt-2">${expirationBadge}</div>
+            
+            <div class="video-actions">
+              ${isExpired ? `
+                <button onclick="reuploadVideo('${video.id}')" class="btn" title="Re-upload">
+                  🔄 Re-upload
+                </button>
+              ` : `
+                <button onclick="viewVideo('${video.id}')" class="btn" title="View">
+                  👁️ View
+                </button>
+                <button onclick="copyVideoLink('${video.id}')" class="btn btn-secondary" title="Copy Link">
+                  📋 Copy
+                </button>
+                <button onclick="downloadVideoFile('${video.id}')" class="btn btn-secondary" title="Download">
+                  📥
+                </button>
+              `}
+              <button onclick="deleteVideo('${video.id}')" class="btn btn-danger" title="Delete">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+        
+        container.appendChild(card);
+      });
+    }
+
+    function viewVideo(videoId) {
+      window.open(`/video.html?v=${videoId}`, '_blank');
+    }
+
+    async function copyVideoLink(videoId) {
+      const link = `${window.location.origin}/video.html?v=${videoId}`;
+      const success = await copyToClipboard(link);
+      if (success) {
+        showToast('Link copied to clipboard!', 'success');
+      } else {
+        showToast('Failed to copy link', 'error');
+      }
+    }
+
+    function downloadVideoFile(videoId) {
+      window.location.href = `${API_BASE}/api/videos/${videoId}/download`;
+    }
+
+    async function reuploadVideo(videoId) {
+      const expirationType = prompt('Choose expiration time:\n1 = 24 hours\n2 = 1 week\n3 = 1 month', '2');
+      const expirationMap = {
+        '1': '24h',
+        '2': '1week',
+        '3': '1month'
+      };
+
+      const expiration = expirationMap[expirationType] || '1week';
+
+      try {
+        const response = await apiCall(`/api/videos/${videoId}/reupload`, {
+          method: 'POST',
+          body: JSON.stringify({ expirationType: expiration }),
+        });
+
+        showToast('Video re-uploaded successfully!', 'success');
+        
+        // Reload videos
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error re-uploading video:', error);
+        showToast('Failed to re-upload video', 'error');
+      }
+    }
+
+    function deleteVideo(videoId) {
+      videoToDelete = videoId;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.add('hidden');
+      videoToDelete = null;
+    }
+
+    async function confirmDelete() {
+      if (!videoToDelete) return;
+
+      try {
+        await apiCall(`/api/videos/${videoToDelete}`, {
+          method: 'DELETE',
+        });
+
+        showToast('Video deleted successfully', 'success');
+        closeDeleteModal();
+        
+        // Reload videos
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+
+      } catch (error) {
+        console.error('Error deleting video:', error);
+        showToast('Failed to delete video', 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
+

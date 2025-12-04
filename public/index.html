@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScreenGrab - Screen Recording Made Simple</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">🎥 ScreenGrab</a>
+      <nav class="nav-links">
+        <div id="auth-section"></div>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero">
+    <h1>Screen Recording Made Simple</h1>
+    <p>Record, share, and let your videos self-destruct. No storage worries.</p>
+    <div id="hero-actions" class="mt-4">
+      <button onclick="handleLogin()" class="btn btn-large">
+        Get Started with Google
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div style="text-align: center;">
+        <h2 class="mb-3">Why ScreenGrab?</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 32px; margin-top: 40px;">
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+            <h3 style="margin-bottom: 8px;">Easy Recording</h3>
+            <p style="color: var(--text-secondary);">Record your screen, window, or tab directly in your browser. No downloads required.</p>
+          </div>
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">🔗</div>
+            <h3 style="margin-bottom: 8px;">Instant Sharing</h3>
+            <p style="color: var(--text-secondary);">Get a shareable link immediately. Copy and send to anyone, anywhere.</p>
+          </div>
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">⏱️</div>
+            <h3 style="margin-bottom: 8px;">Self-Destructing</h3>
+            <p style="color: var(--text-secondary);">Videos expire after 24h, 1 week, or 1 month. No storage bloat.</p>
+          </div>
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">💾</div>
+            <h3 style="margin-bottom: 8px;">Download Anytime</h3>
+            <p style="color: var(--text-secondary);">Download your videos before they expire. Keep what matters.</p>
+          </div>
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">🆓</div>
+            <h3 style="margin-bottom: 8px;">Completely Free</h3>
+            <p style="color: var(--text-secondary);">Built on Cloudflare's free tier. No hidden costs or limits.</p>
+          </div>
+          <div>
+            <div style="font-size: 48px; margin-bottom: 16px;">📧</div>
+            <h3 style="margin-bottom: 8px;">Smart Requests</h3>
+            <p style="color: var(--text-secondary);">Get notified when someone wants an expired video.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/utils.js"></script>
+  <script>
+    async function init() {
+      // Handle token from OAuth callback
+      handleAuthToken();
+      
+      const user = await getCurrentUser();
+      const authSection = document.getElementById('auth-section');
+      const heroActions = document.getElementById('hero-actions');
+      
+      if (user) {
+        authSection.innerHTML = `
+          <a href="/dashboard.html">Dashboard</a>
+          <a href="/record.html" class="btn">Start Recording</a>
+        `;
+        heroActions.innerHTML = `
+          <a href="/record.html" class="btn btn-large">Start Recording Now</a>
+        `;
+      } else {
+        authSection.innerHTML = `
+          <button onclick="handleLogin()" class="btn">Login</button>
+        `;
+      }
+      
+      // Check for error parameter
+      const error = getQueryParam('error');
+      if (error) {
+        if (error === 'auth_failed') {
+          showToast('Authentication failed. Please try again.', 'error');
+        }
+      }
+    }
+    
+    function handleLogin() {
+      window.location.href = '/api/auth/google';
+    }
+    
+    init();
+  </script>
+</body>
+</html>
+

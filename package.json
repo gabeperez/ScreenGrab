@@ -1,0 +1,25 @@
+{
+  "name": "screengrab",
+  "version": "1.0.0",
+  "description": "Screen recording and video sharing platform with self-destructing links",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute screengrab-db --file=./schema.sql",
+    "db:local": "wrangler d1 execute screengrab-db --local --file=./schema.sql"
+  },
+  "keywords": ["screen-recording", "cloudflare", "workers", "r2"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.683.0",
+    "@aws-sdk/s3-request-presigner": "^3.683.0",
+    "hono": "^4.6.14",
+    "jose": "^5.9.6"
+  }
+}
+
